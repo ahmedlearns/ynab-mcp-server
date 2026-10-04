@@ -137,9 +137,10 @@ the host after each push to main. It reaches the host over
 should let `tag:ci` reach only its SSH port. To turn it on:
 
 1. In the Tailscale admin console, create an OpenID Connect trust credential
-   with issuer GitHub Actions, subject
-   `repo:<owner>/<repo>:ref:refs/heads/main`, the Auth Keys write scope, and tag
-   `tag:ci`.
+   with issuer GitHub Actions, subject `<prefix>:ref:refs/heads/main`, the Auth
+   Keys write scope, and tag `tag:ci`. The prefix is `repo:<owner>/<repo>`, or
+   the `sub_claim_prefix` that
+   `gh api repos/<owner>/<repo>/actions/oidc/customization/sub` prints.
 2. Make an SSH key for the job. In the host's `~/.ssh/authorized_keys`, limit it
    to the tailnet and to this one command:
 
