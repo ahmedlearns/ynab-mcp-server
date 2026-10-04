@@ -1,6 +1,9 @@
 # custom ynab skills
 .skills/ynab*
 
+# personal setup notes and scripts; this repo is public
+/private/
+
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
