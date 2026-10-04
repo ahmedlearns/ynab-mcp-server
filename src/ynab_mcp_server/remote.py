@@ -51,6 +51,10 @@ def main() -> None:
         required_scopes=["read:user"],
         # Each request otherwise makes two GitHub API calls to check the token
         cache_ttl_seconds=300,
+        # Only Claude's hosted apps (claude.ai, Desktop, mobile) can sign in.
+        # Claude Code and other local clients use a localhost callback instead.
+        # https://claude.com/docs/connectors/building/authentication#callback-urls
+        allowed_client_redirect_uris=["https://claude.ai/api/mcp/auth_callback"],
         allowed_user_ids=allowed_user_ids,
     )
 
