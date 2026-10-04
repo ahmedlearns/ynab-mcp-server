@@ -116,7 +116,9 @@ whose `cloudflared` runs in Docker. Nothing listens on the host.
    [github.com/settings/developers](https://github.com/settings/developers).
    Set its **Authorization callback URL** to `https://<your-host>/auth/callback`.
 2. Copy `.env.example` to `.env` and fill it in.
-3. Run `docker compose up -d --build`.
+3. Run `docker compose up -d --wait`. It pulls the image CI publishes to
+   `ghcr.io/ahmedlearns/ynab-mcp-server` (arm64 and amd64); add `--build` to
+   build it yourself.
 4. In your tunnel, add a public hostname for `<your-host>` pointing at
    `http://ynab-mcp:8000`.
 5. In Claude, go to **Settings → Connectors → Add custom connector** and enter
