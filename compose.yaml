@@ -1,7 +1,7 @@
 # Runs the server for a remote connector (Claude Desktop, claude.ai, mobile).
-# Copy .env.example to .env, fill it in, then: docker compose up -d --wait
-# That pulls the image CI publishes (.github/workflows/image.yml); add --build
-# to build it from this checkout instead.
+# Copy .env.example to .env, fill it in, then run deploy/update.sh. That pulls
+# the image CI publishes (.github/workflows/image.yml) and starts it here.
+# To build from this checkout instead: docker compose up -d --wait --build
 #
 # Nothing is published on the host. The server joins the Docker network your
 # Cloudflare Tunnel's cloudflared container runs on, and the tunnel's public

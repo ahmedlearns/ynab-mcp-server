@@ -1,7 +1,7 @@
 name: Publish image
 
 # Builds the container image (Dockerfile) and pushes it to GHCR: sha-<short>
-# on every push, latest only from main.
+# on every push, latest only from main. Pushes to main can then deploy it.
 on:
   push:
     branches: ["**"]
@@ -58,3 +58,47 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Updates the server host to the image just published, by running
+  # deploy/update.sh there. GitHub's runners can't reach the host directly, so
+  # the job joins your tailnet as an ephemeral tag:ci node; the tailnet policy
+  # should let tag:ci reach only the host's SSH port. Everything about the host
+  # comes from secrets, since this repo's Actions logs are public.
+  deploy:
+    name: Deploy
+    needs: publish
+    # Off until the AUTO_DEPLOY repo variable is 'true'; set it to anything else to pause.
+    if: github.ref == 'refs/heads/main' && vars.AUTO_DEPLOY == 'true'
+    runs-on: ubuntu-24.04
+    # One deploy at a time. A newer run waits, replacing any older one still waiting.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    permissions:
+      # Tailscale trades GitHub's OIDC token for a key, so no Tailscale secret is stored.
+      id-token: write
+    steps:
+      - name: Join the tailnet
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: ${{ secrets.DEPLOY_HOST }}
+
+      - name: Deploy on the host
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        # The host accepts this key only to run deploy/update.sh (a forced
+        # command in its authorized_keys), whatever command is sent; "update"
+        # is just a label.
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -T -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" update

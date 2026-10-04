@@ -106,7 +106,9 @@ Add the following to your OpenCode configuration file (`~/.config/opencode/openc
 Claude's custom connectors (Claude Desktop, claude.ai, mobile) reach the server
 from Anthropic's cloud, so it must run over HTTPS at a public URL. In that mode
 (`ynab-mcp-http`) the server requires GitHub sign-in and only lets in the GitHub
-user IDs you list. It asks GitHub for `read:user` only.
+user IDs you list. It asks GitHub for `read:user` only. Sign-in only redirects
+back to Claude's hosted apps, so Claude Code and other local clients can't use
+it; give those the local setup above instead.
 
 `compose.yaml` runs it next to an existing
 [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
@@ -115,14 +117,39 @@ whose `cloudflared` runs in Docker. Nothing listens on the host.
 1. Create a GitHub OAuth app at
    [github.com/settings/developers](https://github.com/settings/developers).
    Set its **Authorization callback URL** to `https://<your-host>/auth/callback`.
-2. Copy `.env.example` to `.env` and fill it in.
-3. Run `docker compose up -d --wait`. It pulls the image CI publishes to
-   `ghcr.io/ahmedlearns/ynab-mcp-server` (arm64 and amd64); add `--build` to
-   build it yourself.
+2. On the host, clone this repo, then copy `.env.example` to `.env` and fill it
+   in.
+3. Run `deploy/update.sh`. It pulls the image CI publishes to
+   `ghcr.io/ahmedlearns/ynab-mcp-server` (arm64 and amd64), checks out the
+   commit it was built from, and starts it with `docker compose`. Run it again
+   to update, or pass a tag (`latest` or `sha-<commit>`) to pin one.
 4. In your tunnel, add a public hostname for `<your-host>` pointing at
    `http://ynab-mcp:8000`.
 5. In Claude, go to **Settings → Connectors → Add custom connector** and enter
    `https://<your-host>/mcp`. Claude sends you through GitHub sign-in.
+
+### Automatic Deploys
+
+The `Deploy` job in `.github/workflows/image.yml` runs `deploy/update.sh` on
+the host after each push to main. It reaches the host over
+[Tailscale](https://tailscale.com/kb/1276/tailscale-github-action) as a
+`tag:ci` node, so the host must be on your tailnet and the tailnet policy
+should let `tag:ci` reach only its SSH port. To turn it on:
+
+1. In the Tailscale admin console, create an OpenID Connect trust credential
+   with issuer GitHub Actions, subject
+   `repo:<owner>/<repo>:ref:refs/heads/main`, the Auth Keys write scope, and tag
+   `tag:ci`.
+2. Make an SSH key for the job. In the host's `~/.ssh/authorized_keys`, limit it
+   to the tailnet and to this one command:
+
+   ```
+   from="100.64.0.0/10,fd7a:115c:a1e0::/48",command="/path/to/clone/deploy/update.sh",restrict ssh-ed25519 AAAA... ynab-mcp-ci
+   ```
+3. Add repo secrets: `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` (from step 1),
+   `DEPLOY_HOST` (the host's tailnet name), `DEPLOY_USER`, `DEPLOY_SSH_KEY` (the
+   private key) and `DEPLOY_KNOWN_HOSTS` (`<host> <its ed25519 host key>`).
+4. Set the repo variable `AUTO_DEPLOY` to `true`.
 
 ## Available Tools
 
