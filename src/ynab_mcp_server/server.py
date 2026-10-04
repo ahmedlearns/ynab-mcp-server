@@ -10,14 +10,28 @@ from fastmcp.server.providers.openapi import MCPType, OpenAPITool, RouteMap
 YNAB_API_BASE = "https://api.ynab.com/v1"
 YNAB_OPENAPI_SPEC_URL = "https://api.ynab.com/papi/open_api_spec.yaml"
 
-# Routes to exclude from the MCP server (these return too much data and bomb the context)
-EXCLUDED_ROUTES = [
+# Route maps are checked in order; the first match wins.
+ROUTE_MAPS = [
+    # Returns too much data and bombs the context. YNAB renamed budgets to
+    # plans in its API, so match both.
     RouteMap(
         methods=["GET"],
-        pattern=r"^/budgets/\{budget_id\}/payees$",
+        pattern=r"^/(budgets/\{budget_id\}|plans/\{plan_id\})/payees$",
         mcp_type=MCPType.EXCLUDE,
     ),
+    # Read-only: only GET routes become tools. Everything else, including write
+    # endpoints YNAB adds to its spec later, is excluded.
+    RouteMap(methods=["GET"], mcp_type=MCPType.TOOL),
+    RouteMap(mcp_type=MCPType.EXCLUDE),
 ]
+
+
+async def _reject_non_get(request: httpx.Request) -> None:
+    """Second guard for read-only mode: never send a write request to YNAB."""
+    if request.method != "GET":
+        raise PermissionError(
+            f"Read-only server refused {request.method} {request.url.path}"
+        )
 
 
 def _omit_openapi_output_schemas(_route: object, component: object) -> None:
@@ -45,6 +59,7 @@ def create_server() -> FastMCP:
         base_url=YNAB_API_BASE,
         headers={"Authorization": f"Bearer {token}"},
         timeout=30.0,
+        event_hooks={"request": [_reject_non_get]},
     )
 
     # Create MCP server from OpenAPI spec
@@ -52,7 +67,7 @@ def create_server() -> FastMCP:
         openapi_spec=openapi_spec,
         client=client,
         name="YNAB MCP Server",
-        route_maps=EXCLUDED_ROUTES,
+        route_maps=ROUTE_MAPS,
         mcp_component_fn=_omit_openapi_output_schemas,
     )
 

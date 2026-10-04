@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server for the [YNAB (You Need A Budget)](https://www.ynab.com/) API, built with [FastMCP](https://gofastmcp.com/).
 
-This server automatically exposes all YNAB API endpoints as MCP tools, allowing AI assistants like Claude to interact with your YNAB budgets, accounts, transactions, and more.
+This fork is **read-only**: it exposes only the YNAB API's `GET` endpoints as MCP tools, so AI assistants like Claude can read your YNAB plans, accounts, transactions, and more, but cannot create, change, or delete anything. Any write endpoints YNAB adds to its API later stay excluded too. As a second guard, the server's HTTP client refuses to send any non-`GET` request to YNAB.
 
 ## Prerequisites
 
@@ -21,9 +21,12 @@ This server automatically exposes all YNAB API endpoints as MCP tools, allowing 
 
 ## Add the Server to Your MCP Client
 
-The published package runs with `uvx ynab-mcp-tools`. `uvx` downloads it from
-PyPI and runs it in an isolated environment, so you do not need to clone this
-repository or manage a virtualenv.
+> **Note:** The `ynab-mcp-tools` package on PyPI is the upstream version, which
+> includes write tools. To get the read-only server, run it from a clone of this
+> fork, as shown below. `uv run --locked` also pins dependencies to `uv.lock`.
+
+Clone this repository, then use its absolute path in place of
+`/path/to/ynab-mcp-server` below.
 
 ### With Claude Desktop
 
@@ -36,8 +39,8 @@ Add the following to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "ynab": {
-      "command": "uvx",
-      "args": ["ynab-mcp-tools"],
+      "command": "uv",
+      "args": ["run", "--locked", "--directory", "/path/to/ynab-mcp-server", "ynab-mcp-server"],
       "env": {
         "YNAB_API_TOKEN": "your-token-here"
       }
@@ -56,7 +59,7 @@ For all projects (**user** scope):
 ```bash
 claude mcp add ynab --scope user \
   -e "YNAB_API_TOKEN=your-token-here" \
-  -- uvx ynab-mcp-tools
+  -- uv run --locked --directory /path/to/ynab-mcp-server ynab-mcp-server
 ```
 
 For the current directory only, omit `--scope user` or use `--scope local`. Use `claude mcp list` to verify and `claude mcp remove ynab --scope user` (or `local`) to uninstall.
@@ -69,8 +72,8 @@ Add the following to your Cursor MCP settings (`~/.cursor/mcp.json` for global o
 {
   "mcpServers": {
     "ynab": {
-      "command": "uvx",
-      "args": ["ynab-mcp-tools"],
+      "command": "uv",
+      "args": ["run", "--locked", "--directory", "/path/to/ynab-mcp-server", "ynab-mcp-server"],
       "env": {
         "YNAB_API_TOKEN": "your-token-here"
       }
@@ -88,7 +91,7 @@ Add the following to your OpenCode configuration file (`~/.config/opencode/openc
   "mcp": {
     "ynab": {
       "type": "local",
-      "command": ["uvx", "ynab-mcp-tools"],
+      "command": ["uv", "run", "--locked", "--directory", "/path/to/ynab-mcp-server", "ynab-mcp-server"],
       "enabled": true,
       "environment": {
         "YNAB_API_TOKEN": "your-token-here"
@@ -100,61 +103,48 @@ Add the following to your OpenCode configuration file (`~/.config/opencode/openc
 
 ## Available Tools
 
-The server automatically exposes all YNAB API endpoints as MCP tools. Here are some of the available operations:
+The server exposes every `GET` endpoint in YNAB's API as an MCP tool. YNAB now calls budgets "plans". The tools include:
 
 ### User
 
 - `getUser` - Get authenticated user information
 
-### Budgets
+### Plans
 
-- `getBudgets` - List all budgets
-- `getBudgetById` - Get a single budget with all related entities
-- `getBudgetSettingsById` - Get budget settings
+- `getPlans` - List all plans
+- `getPlanById` - Get a single plan with all related entities
+- `getPlanSettingsById` - Get plan settings
+- `getPlanMonths` / `getPlanMonth` - List plan months, or get one
 
 ### Accounts
 
-- `getAccounts` - List all accounts for a budget
-- `getAccountById` - Get a single account
-- `createAccount` - Create a new account
+- `getAccounts` / `getAccountById`
 
 ### Categories
 
-- `getCategories` - List all categories for a budget
-- `getCategoryById` - Get a single category
-- `updateCategory` - Update a category
+- `getCategories` / `getCategoryById`
 - `getMonthCategoryById` - Get a category for a specific month
-- `updateMonthCategory` - Update a category for a specific month
 
 ### Transactions
 
-- `getTransactions` - List transactions
-- `getTransactionById` - Get a single transaction
-- `createTransaction` - Create a new transaction
-- `updateTransaction` - Update a transaction
-- `deleteTransaction` - Delete a transaction
-- `importTransactions` - Import transactions
-- `getTransactionsByAccount` - List transactions for an account
-- `getTransactionsByCategory` - List transactions for a category
-- `getTransactionsByPayee` - List transactions for a payee
+- `getTransactions` / `getTransactionById`
+- `getTransactionsByAccount`, `getTransactionsByCategory`, `getTransactionsByPayee`, `getTransactionsByMonth`
 
 ### Payees
 
-- `getPayees` - List all payees
-- `getPayeeById` - Get a single payee
-- `updatePayee` - Update a payee
+- `getPayeeById`
+- `getPayeeLocations`, `getPayeeLocationById`, `getPayeeLocationsByPayee`
+
+`getPayees` (list all payees) is excluded because its response is too large for the context window.
 
 ### Scheduled Transactions
 
-- `getScheduledTransactions` - List scheduled transactions
-- `getScheduledTransactionById` - Get a single scheduled transaction
-- `createScheduledTransaction` - Create a new scheduled transaction
-- `updateScheduledTransaction` - Update a scheduled transaction
+- `getScheduledTransactions` / `getScheduledTransactionById`
 
-### Months
+### Money Movements
 
-- `getBudgetMonths` - List budget months
-- `getBudgetMonth` - Get a single budget month
+- `getMoneyMovements`, `getMoneyMovementsByMonth`
+- `getMoneyMovementGroups`, `getMoneyMovementGroupsByMonth`
 
 ## Example Usage
 
@@ -163,7 +153,7 @@ Once connected, you can ask Claude things like:
 - "Show me my YNAB budgets"
 - "What's my current balance in my checking account?"
 - "List my transactions from last week"
-- "Create a transaction for $50 at the grocery store"
+- "What were my biggest spending categories last month?"
 - "How much have I spent on dining out this month?"
 
 ## Creating Custom Skills for Your YNAB Workflow
