@@ -1,0 +1,25 @@
+# Runs the server for a remote connector (Claude Desktop, claude.ai, mobile).
+# Copy .env.example to .env, fill it in, then: docker compose up -d --build
+#
+# Nothing is published on the host. The server joins the Docker network your
+# Cloudflare Tunnel's cloudflared container runs on, and the tunnel's public
+# hostname points at http://ynab-mcp:8000.
+name: ynab-mcp
+
+services:
+  ynab-mcp:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - data:/data
+    networks:
+      - tunnel
+
+networks:
+  tunnel:
+    name: ${TUNNEL_NETWORK:?set TUNNEL_NETWORK in .env}
+    external: true
+
+volumes:
+  data:

@@ -101,6 +101,27 @@ Add the following to your OpenCode configuration file (`~/.config/opencode/openc
 }
 ```
 
+## Host It as a Remote Connector
+
+Claude's custom connectors (Claude Desktop, claude.ai, mobile) reach the server
+from Anthropic's cloud, so it must run over HTTPS at a public URL. In that mode
+(`ynab-mcp-http`) the server requires GitHub sign-in and only lets in the GitHub
+user IDs you list. It asks GitHub for `read:user` only.
+
+`compose.yaml` runs it next to an existing
+[Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+whose `cloudflared` runs in Docker. Nothing listens on the host.
+
+1. Create a GitHub OAuth app at
+   [github.com/settings/developers](https://github.com/settings/developers).
+   Set its **Authorization callback URL** to `https://<your-host>/auth/callback`.
+2. Copy `.env.example` to `.env` and fill it in.
+3. Run `docker compose up -d --build`.
+4. In your tunnel, add a public hostname for `<your-host>` pointing at
+   `http://ynab-mcp:8000`.
+5. In Claude, go to **Settings → Connectors → Add custom connector** and enter
+   `https://<your-host>/mcp`. Claude sends you through GitHub sign-in.
+
 ## Available Tools
 
 The server exposes every `GET` endpoint in YNAB's API as an MCP tool. YNAB now calls budgets "plans". The tools include:

@@ -5,6 +5,7 @@ import os
 import httpx
 import yaml
 from fastmcp import FastMCP
+from fastmcp.server.auth import AuthProvider
 from fastmcp.server.providers.openapi import MCPType, OpenAPITool, RouteMap
 
 YNAB_API_BASE = "https://api.ynab.com/v1"
@@ -40,7 +41,7 @@ def _omit_openapi_output_schemas(_route: object, component: object) -> None:
         component.output_schema = None
 
 
-def create_server() -> FastMCP:
+def create_server(auth: AuthProvider | None = None) -> FastMCP:
     """Create and configure the YNAB MCP server from the OpenAPI spec."""
     token = os.environ.get("YNAB_API_TOKEN")
     if not token:
@@ -69,6 +70,7 @@ def create_server() -> FastMCP:
         name="YNAB MCP Server",
         route_maps=ROUTE_MAPS,
         mcp_component_fn=_omit_openapi_output_schemas,
+        auth=auth,
     )
 
 
