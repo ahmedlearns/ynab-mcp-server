@@ -31,6 +31,7 @@ Issues = "https://github.com/rgarcia/ynab-mcp-server/issues"
 [project.scripts]
 ynab-mcp-tools = "ynab_mcp_server.server:main"
 ynab-mcp-server = "ynab_mcp_server.server:main"
+ynab-mcp-http = "ynab_mcp_server.remote:main"
 
 [build-system]
 requires = ["hatchling>=1.31.0"]

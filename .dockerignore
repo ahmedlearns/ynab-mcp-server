@@ -1,0 +1,9 @@
+.git
+.github
+.skills
+.venv
+.env
+**/__pycache__
+dist
+tests
+private
